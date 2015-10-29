@@ -92,7 +92,10 @@ void sort(struct matrix *m, int c_s, int c_e, int r)
 
 void go(struct matrix *cur, int c_s, int c_e, int r)
 {
-	int i = c_s, j;
+	int i = c_s, j = i + 1;
+
+	if (debug)
+		printf("c_s %d c_e %d r %d\n", c_s, c_e, r);
 
 	if (r >= cur->dim)
 		return;
@@ -112,7 +115,11 @@ void go(struct matrix *cur, int c_s, int c_e, int r)
 
 	while (i < c_e && j < c_e) {
 		j = i + 1;
-		printf("i %d j %d r %d\n", i, j, r);
+
+		if (debug)
+			printf("i %d j %d r %d c_e %d \n", i, j, r, c_e);
+
+
 		while (j < c_e) {
 			assert (i < j);
 			if (*at(cur, r, i) != *at(cur, r, j)) {
@@ -120,15 +127,18 @@ void go(struct matrix *cur, int c_s, int c_e, int r)
 					go(cur, i, j, r+1);
 				i = j;
 				break;
-			} else
-				j++;
+			}
+
+			if (++j == c_e) // hitting the right edge
+				go(cur, i, j, r+1);
 		}
 	}
 	
 
 
 #if 0
-	//WTF: the 2 printf with i have different 'i'.
+	// WTF: the 2 printf with i have different 'i'. (gcc 4.8 on ubuntu 14.04)
+	// must be something wrong with closure or tail call elimination.
 	// check child section of current range
 	for (i = c_s, j = i + 1; i < c_e; i = j, j += 1) {
 		printf("i %d %p j %d\n", i, &i, j);

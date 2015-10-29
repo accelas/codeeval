@@ -1,13 +1,15 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
+#include <assert.h>
 
 #define MAX_DIM 16
 
-struct matrix 
+static bool debug = false;
+
+static struct matrix 
 {
 	size_t dim;
 	int data[MAX_DIM * MAX_DIM];
@@ -23,13 +25,13 @@ int *at(struct matrix *m, int r, int c)
 	return &m->data[r*m->dim+c];
 }
 
-void show_col(struct idx *idx, int num) {
+void show_col(struct idx *idx, int num)
+{
 	int i;
 	printf("idx %d\n", idx->o);
 	for (i = 0; i < num; i++) {
-		printf("%d\n", idx->v[i]);
+		printf("%4d\n", idx->v[i]);
 	}
-
 }
 
 void show_matrix(struct matrix *m, bool final)
@@ -39,7 +41,7 @@ void show_matrix(struct matrix *m, bool final)
 	if (!final)
 		printf("dim %zu, data:\n", m->dim);
 	for (i = 0; i < num; i++) {
-		printf("%d", m->data[i]);
+		printf("%*d", final ? 0 : 4, m->data[i]);
 		if ((i + 1) == num)
 			printf("\n");
 		else if ((i + 1 ) % m->dim == 0)
@@ -72,8 +74,8 @@ void sort(struct matrix *m, int c_s, int c_e, int r)
 {
 	int i;
 	const size_t num = c_e - c_s;
-	printf("sort %d\n", sort_counter++);
-	show_matrix(m, false);
+
+	assert(num > 1);
 
 	for (i = 0; i < num; i++) {
 		idx_buf[i].o = i;
@@ -85,30 +87,67 @@ void sort(struct matrix *m, int c_s, int c_e, int r)
 
 	for (i = 0; i < num; i++)
 		copy_col_from(m, c_s + i, idx_buf[i].v);
-	show_matrix(m, false);
 
 }
 
 void go(struct matrix *cur, int c_s, int c_e, int r)
 {
-	int j = 1;
+	int i = c_s, j;
+
+	if (r >= cur->dim)
+		return;
+
+	if (debug) {
+		printf("sorting row %d from column %d to %d\n", r, c_s , c_e - 1);
+	}
 
 	// sort current section
 	sort(cur, c_s, c_e, r);
 
+	if (debug) {
+		printf("after sorting\n");
+		show_matrix(cur, false);
+		printf("\n");
+	}
+
+	while (i < c_e && j < c_e) {
+		j = i + 1;
+		printf("i %d j %d r %d\n", i, j, r);
+		while (j < c_e) {
+			assert (i < j);
+			if (*at(cur, r, i) != *at(cur, r, j)) {
+				if (j != i + 1)
+					go(cur, i, j, r+1);
+				i = j;
+				break;
+			} else
+				j++;
+		}
+	}
+	
+
+
+#if 0
+	//WTF: the 2 printf with i have different 'i'.
 	// check child section of current range
-	for (int i = c_s; i < c_e; i += j) {
+	for (i = c_s, j = i + 1; i < c_e; i = j, j += 1) {
+		printf("i %d %p j %d\n", i, &i, j);
 		// move the right cursor, iff they're same
-		for (j = 1; j < c_e - i; j++) {
-			if (*at(cur, r, i) != *at(cur, r, i + j)) {
-				if (j == 1) // two cursor's are different
-					goto next; // advance left cursor
-				else
-					go (cur, i, i + j + 1, r + 1);
+		for (j = i + 1; j < c_e; j++) {
+			printf("i %d %p j %d\n", i, &i, j);
+			if (*at(cur, r, i) != *at(cur, r, j)) {
+				if (j == i + 1) {
+					printf("next segment\n");
+					break;
+				}
+				else {
+					printf("going for %d to %d on row %d\n", i, j, r+1);
+					go (cur, i, j, r + 1);
+				}
 			} // else continue move cursor
 		}
-next: {}
 	}
+#endif
 }
 
 void proc_line(char *line)
@@ -137,6 +176,9 @@ void proc_line(char *line)
 	m->dim = sqrt(i);
 
 	sort_counter = 0;
+	if (debug)
+		show_matrix(m, true);
+
 	go(m, 0, m->dim, 0);
 
 	show_matrix(m, true);
@@ -147,10 +189,13 @@ int main(int argc, const char * argv[])
     FILE *file = fopen(argv[1], "r");
     char line[1024];
 
+    if (argc == 3)
+        debug = true;
+
     while (fgets(line, 1024, file)) {
         proc_line(line);
     }
 
     return 0;
-} 
+}
 
